@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Art Gallery</title>
+  <script src="https://openseadragon.github.io/openseadragon/openseadragon.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0a0a0a;
+      color: #fff;
+      overflow: hidden;
+    }
+
+    /* Sidebar Gallery */
+    .sidebar {
+      position: fixed;
+      left: 0;
+      top: 0;
+      width: 300px;
+      height: 100vh;
+      background: #1a1a1a;
+      border-right: 1px solid #333;
+      overflow-y: auto;
+      z-index: 100;
+      transition: transform 0.3s;
+    }
+
+    .sidebar.hidden {
+      transform: translateX(-300px);
+    }
+
+    .sidebar-header {
+      padding: 20px;
+      background: #111;
+      border-bottom: 1px solid #333;
+    }
+
+    .sidebar-header h1 {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .artwork-count {
+      font-size: 13px;
+      color: #888;
+    }
+
+    .artworks-list {
+      padding: 12px;
+    }
+
+    .artwork-item {
+      padding: 12px;
+      margin-bottom: 8px;
+      background: #222;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: 2px solid transparent;
+    }
+
+    .artwork-item:hover {
+      background: #2a2a2a;
+      border-color: #444;
+    }
+
+    .artwork-item.active {
+      background: #2a2a2a;
+      border-color: #0066cc;
+    }
+
+    .artwork-name {
+      font-size: 14px;
+      font-weight: 500;
+      margin-bottom: 4px;
+      line-height: 1.3;
+    }
+
+    .artwork-meta {
+      font-size: 12px;
+      color: #888;
+    }
+
+    /* Viewer Area */
+    .viewer-container {
+      position: fixed;
+      left: 300px;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      transition: left 0.3s;
+    }
+
+    .viewer-container.fullwidth {
+      left: 0;
+    }
+
+    #viewer {
+      width: 100%;
+      height: 100%;
+      background: #000;
+    }
+
+    /* Controls */
+    .controls {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 200;
+      display: flex;
+      gap: 12px;
+    }
+
+    .btn {
+      background: rgba(0, 0, 0, 0.8);
+      backdrop-filter: blur(10px);
+      border: 1px solid #333;
+      color: #fff;
+      padding: 10px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.2s;
+    }
+
+    .btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: #555;
+    }
+
+    /* Info Overlay */
+    .info-overlay {
+      position: fixed;
+      bottom: 20px;
+      left: 320px;
+      background: rgba(0, 0, 0, 0.8);
+      backdrop-filter: blur(10px);
+      padding: 16px 20px;
+      border-radius: 8px;
+      border: 1px solid #333;
+      z-index: 200;
+      transition: left 0.3s, opacity 0.3s;
+    }
+
+    .info-overlay.fullwidth {
+      left: 20px;
+    }
+
+    .info-overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .info-title {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .info-details {
+      font-size: 13px;
+      color: #999;
+    }
+
+    /* Loading */
+    .loading {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      color: #666;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: #666;
+    }
+
+    .empty-state h2 {
+      font-size: 16px;
+      margin-bottom: 12px;
+      color: #888;
+    }
+
+    .empty-state code {
+      background: #222;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 13px;
+      color: #0066cc;
+    }
+  </style>
+</head>
+<body>
+  <!-- Sidebar Gallery -->
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <h1>Art Gallery</h1>
+      <div class="artwork-count" id="artworkCount">Loading...</div>
+    </div>
+    <div class="artworks-list" id="artworksList"></div>
+  </div>
+
+  <!-- Viewer -->
+  <div class="viewer-container" id="viewerContainer">
+    <div id="viewer">
+      <div class="loading">Select an artwork to view</div>
+    </div>
+
+    <div class="controls">
+      <button class="btn" id="toggleSidebar">☰ Gallery</button>
+      <button class="btn" id="fullscreen">⛶ Fullscreen</button>
+    </div>
+
+    <div class="info-overlay hidden" id="infoOverlay">
+      <div class="info-title" id="infoTitle"></div>
+      <div class="info-details" id="infoDetails"></div>
+    </div>
+  </div>
+
+  <script>
+    let artworks = [];
+    let currentArtwork = null;
+    let viewer = null;
+    let sidebarVisible = true;
+
+    // Load artworks from API
+    async function loadArtworks() {
+      try {
+        const response = await fetch('/api/artworks');
+        if (!response.ok) throw new Error('API failed');
+
+        artworks = await response.json();
+        renderArtworksList();
+
+        // Load first artwork automatically
+        if (artworks.length > 0) {
+          loadArtwork(artworks[0], 0);
+        }
+      } catch (error) {
+        console.error('Failed to load artworks:', error);
+        document.getElementById('artworksList').innerHTML = `
+          <div class="empty-state">
+            <h2>No artworks found</h2>
+            <p>Convert an image with:</p>
+            <code>python3 convert_to_dzi.py image.jpg</code>
+          </div>
+        `;
+      }
+    }
+
+    // Render artworks list
+    function renderArtworksList() {
+      const list = document.getElementById('artworksList');
+      const count = document.getElementById('artworkCount');
+
+      count.textContent = `${artworks.length} ${artworks.length === 1 ? 'artwork' : 'artworks'}`;
+
+      if (artworks.length === 0) {
+        list.innerHTML = `
+          <div class="empty-state">
+            <h2>No artworks found</h2>
+            <p>Convert an image:</p>
+            <code>python3 convert_to_dzi.py image.jpg</code>
+          </div>
+        `;
+        return;
+      }
+
+      list.innerHTML = artworks.map((artwork, index) => `
+        <div class="artwork-item" data-index="${index}" onclick="loadArtwork(artworks[${index}], ${index})">
+          <div class="artwork-name">${artwork.name}</div>
+          <div class="artwork-meta">${artwork.slug}</div>
+        </div>
+      `).join('');
+    }
+
+    // Load artwork in viewer
+    function loadArtwork(artwork, index) {
+      currentArtwork = artwork;
+
+      // Update active state
+      document.querySelectorAll('.artwork-item').forEach((item, i) => {
+        item.classList.toggle('active', i === index);
+      });
+
+      // Show info
+      const infoOverlay = document.getElementById('infoOverlay');
+      const infoTitle = document.getElementById('infoTitle');
+      const infoDetails = document.getElementById('infoDetails');
+
+      infoTitle.textContent = artwork.name;
+      infoDetails.textContent = artwork.slug;
+      infoOverlay.classList.remove('hidden');
+
+      // Load in OpenSeadragon
+      if (viewer) {
+        viewer.open(artwork.path);
+      } else {
+        viewer = OpenSeadragon({
+          id: "viewer",
+          tileSources: artwork.path,
+          prefixUrl: "https://openseadragon.github.io/openseadragon/images/",
+          showNavigationControl: true,
+          animationTime: 0.5,
+          blendTime: 0.1,
+          constrainDuringPan: true,
+          maxZoomPixelRatio: 2,
+          minZoomLevel: 0.8,
+          visibilityRatio: 1,
+          zoomPerScroll: 2,
+          timeout: 120000
+        });
+      }
+    }
+
+    // Toggle sidebar
+    document.getElementById('toggleSidebar').addEventListener('click', () => {
+      sidebarVisible = !sidebarVisible;
+      document.getElementById('sidebar').classList.toggle('hidden', !sidebarVisible);
+      document.getElementById('viewerContainer').classList.toggle('fullwidth', !sidebarVisible);
+      document.getElementById('infoOverlay').classList.toggle('fullwidth', !sidebarVisible);
+    });
+
+    // Fullscreen
+    document.getElementById('fullscreen').addEventListener('click', () => {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen();
+      } else {
+        document.exitFullscreen();
+      }
+    });
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && sidebarVisible) {
+        document.getElementById('toggleSidebar').click();
+      }
+      if (e.key === 'f' || e.key === 'F') {
+        document.getElementById('fullscreen').click();
+      }
+    });
+
+    // Load on page load
+    loadArtworks();
+  </script>
+</body>
+</html>
