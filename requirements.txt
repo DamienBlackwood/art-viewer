@@ -1,1 +1,1 @@
-pyvips>=2.2.0
+pyvips>=2.2.0 # if you want to show progress during conversion to dzi's

@@ -42,53 +42,61 @@ def show_progress(image, progress):
 def convert_to_dzi(image_path, cleanup=False):
     """Convert image to DZI format with clean URL-safe paths"""
 
-    image_path = Path(image_path).resolve()
+    original_image_path = Path(image_path).resolve()
 
-    if not image_path.exists():
-        print(f"Error: File not found: {image_path}")
+    if not original_image_path.exists():
+        print(f"Error: File not found: {original_image_path}")
         sys.exit(1)
 
     # Create clean slug from original filename
-    original_name = image_path.stem
+    original_name = original_image_path.stem
     clean_slug = slugify(original_name)
 
     if not clean_slug:
         clean_slug = 'artwork'
 
     script_dir = Path(__file__).parent
-    dzi_dir = script_dir / clean_slug
-    dzi_file = dzi_dir / f'{clean_slug}.dzi'
+    artworks_dir = script_dir / 'Artworks'
+    artworks_dir.mkdir(exist_ok=True)
 
-    print(f"Converting {image_path.name} to DZI format...")
+    # Copy image into Artworks directory
+    image_in_artworks = artworks_dir / original_image_path.name
+    print(f"Converting {original_image_path.name} to DZI format...")
     print(f"Slug: {clean_slug}")
 
-    # Create output directory
-    dzi_dir.mkdir(exist_ok=True)
-
     try:
+        # Copy image to Artworks folder
+        image_in_artworks.write_bytes(original_image_path.read_bytes())
+
+        dzi_dir = artworks_dir / clean_slug
+        dzi_file = dzi_dir / f'{clean_slug}.dzi'
+
+        # Create output directory
+        dzi_dir.mkdir(exist_ok=True)
+
         if HAS_PYVIPS:
             # Use pyvips with progress tracking
-            convert_with_pyvips(image_path, dzi_dir, clean_slug)
+            convert_with_pyvips(image_in_artworks, dzi_dir, clean_slug)
         else:
             # Fallback to CLI vips
             print("\npyvips not available, using vips CLI (no progress)...")
-            convert_with_cli(image_path, dzi_dir, clean_slug)
+            convert_with_cli(image_in_artworks, dzi_dir, clean_slug)
 
         print(f"\n✓ DZI created successfully!")
         print(f"Files saved to: {dzi_dir}/")
-        print(f"\nViewer links:")
-        print(f"  Direct:    viewer.html?image={clean_slug}/{clean_slug}.dzi")
-        print(f"  Gallery:   gallery.html (auto-discovers all artworks)")
 
         # Store metadata for gallery
-        save_artwork_metadata(clean_slug, original_name, dzi_file)
+        save_artwork_metadata(clean_slug, original_name, dzi_file, artworks_dir)
 
-        if cleanup and image_path.suffix.lower() in ['.jpg', '.jpeg', '.png']:
-            image_path.unlink()
-            print(f"✓ Original image deleted")
+        # Clean up the copied image from Artworks
+        image_in_artworks.unlink()
+        print(f"✓ Copied image cleaned up")
 
     except Exception as e:
         print(f"\nError: {e}")
+        # Clean up copied image on error
+        if image_in_artworks.exists():
+            image_in_artworks.unlink()
         sys.exit(1)
 
 
@@ -134,10 +142,9 @@ def convert_with_cli(image_path, dzi_dir, slug):
     ], check=True)
 
 
-def save_artwork_metadata(slug, original_name, dzi_file):
+def save_artwork_metadata(slug, original_name, dzi_file, artworks_dir):
     """Save metadata about converted artwork"""
-    script_dir = Path(__file__).parent
-    metadata_file = script_dir / '.artworks.json'
+    metadata_file = artworks_dir / '.artworks.json'
 
     metadata = {}
     if metadata_file.exists():

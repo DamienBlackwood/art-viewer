@@ -1,11 +1,11 @@
 # Art Viewer
 
-View massive gigapixel images without breaking your RAM. Convert any image to Deep Zoom tiles and browse with silky smooth zoom.
+View massive gigapixel images without overloading your RAM!
 
 ## Quick Start
 
 ```bash
-pip install -r requirements.txt
+git clone https://github.com/DamienBlackwood/art-viewer.git
 python3 serve.py
 # Visit http://localhost:8000
 ```
@@ -20,7 +20,7 @@ That's it. Refresh browser and it appears.
 
 ## Features
 
-- **Deep Zoom** - Silky smooth zoom on massive images
+- **Deep Zoom** - Smooth zoom on massive images
 - **Gallery + Viewer** - Browse sidebar, click to explore
 - **Auto-discovery** - Drop converted images, they just work
 - **Keyboard**: `ESC` (toggle sidebar), `F` (fullscreen)

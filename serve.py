@@ -49,7 +49,7 @@ class SmartDZIHandler(SimpleHTTPRequestHandler):
             dzi_file = item / f'{item.name}.dzi'
             if dzi_file.exists():
                 # Load metadata if possible
-                metadata_file = script_dir / '.artworks.json'
+                metadata_file = artworks_dir / '.artworks.json'
                 original_name = item.name
 
                 if metadata_file.exists():
