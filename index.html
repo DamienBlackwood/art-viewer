@@ -28,86 +28,6 @@
       overflow: hidden;
     }
 
-    /* Hide default cursor for custom cursor */
-    body:not(.touch-device) {
-      cursor: none !important;
-    }
-
-    body:not(.touch-device) * {
-      cursor: none !important;
-    }
-
-    /* Custom Cursor */
-    .custom-cursor {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 40px;
-      height: 40px;
-      pointer-events: none;
-      z-index: 9999;
-      mix-blend-mode: difference;
-      display: none;
-      will-change: transform;
-    }
-
-    body:not(.touch-device) .custom-cursor {
-      display: block;
-    }
-
-    .cursor-dot {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      width: 8px;
-      height: 8px;
-      background: rgba(120, 200, 180, 1);
-      border-radius: 50%;
-      transform: translate(-50%, -50%);
-      transition: width 0.2s cubic-bezier(0.22, 1, 0.36, 1),
-                  height 0.2s cubic-bezier(0.22, 1, 0.36, 1);
-    }
-
-    .cursor-outline {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      width: 40px;
-      height: 40px;
-      border: 2px solid rgba(120, 200, 180, 0.8);
-      border-radius: 50%;
-      transform: translate(-50%, -50%);
-      transition: width 0.3s cubic-bezier(0.22, 1, 0.36, 1),
-                  height 0.3s cubic-bezier(0.22, 1, 0.36, 1),
-                  border-width 0.3s cubic-bezier(0.22, 1, 0.36, 1);
-    }
-
-    .custom-cursor.link .cursor-outline {
-      width: 60px;
-      height: 60px;
-    }
-
-    .custom-cursor.link .cursor-dot {
-      width: 4px;
-      height: 4px;
-    }
-
-    .custom-cursor.button .cursor-outline {
-      width: 50px;
-      height: 50px;
-      border-width: 3px;
-    }
-
-    .custom-cursor.button .cursor-dot {
-      width: 12px;
-      height: 12px;
-    }
-
-    .custom-cursor.clicking .cursor-outline {
-      width: 35px;
-      height: 35px;
-    }
-
     /* Three.js Background */
     #webGLApp {
       position: fixed;
@@ -213,6 +133,25 @@
       padding: 16px;
     }
 
+    .sidebar-footer {
+      padding: 16px;
+      border-top: 1px solid rgba(30, 90, 80, 0.2);
+      font-size: 12px;
+      color: rgba(120, 200, 180, 0.5);
+      text-align: center;
+      flex-shrink: 0;
+    }
+
+    .sidebar-footer a {
+      color: rgba(180, 240, 220, 0.8);
+      text-decoration: none;
+      transition: color 0.2s ease;
+    }
+
+    .sidebar-footer a:hover {
+      color: rgba(200, 255, 240, 1);
+    }
+
     /* Glowing Artwork Cards */
     .artwork-item {
       position: relative;
@@ -243,6 +182,7 @@
       --glow-boost: 0%;
       --blend: soft-light;
       --glow-blend: plus-lighter;
+      transition: --pointer-x 0.08s ease-out, --pointer-y 0.08s ease-out, --pointer-° 0.1s ease-out, --pointer-d 0.12s ease-out;
     }
 
     .artwork-item::before,
@@ -632,12 +572,6 @@
   <!-- Three.js Gradient Background -->
   <div id="webGLApp"></div>
 
-  <!-- Custom Cursor -->
-  <div class="custom-cursor" id="customCursor">
-    <div class="cursor-dot"></div>
-    <div class="cursor-outline"></div>
-  </div>
-
   <main>
     <!-- Sidebar Gallery -->
     <div class="sidebar" id="sidebar">
@@ -646,6 +580,14 @@
         <div class="artwork-count" id="artworkCount">Loading...</div>
       </div>
       <div class="artworks-list" id="artworksList"></div>
+      <div class="sidebar-footer">
+        <div>Made with ❤️ by Jon</div>
+        <div style="display: flex; justify-content: center; gap: 12px; font-size: 12px; margin-top: 8px;">
+          <a href="https://aurelius.day" target="_blank">website</a>
+          <span style="color: rgba(120, 200, 180, 0.3);">•</span>
+          <a href="https://github.com/DamienBlackwood" target="_blank">github</a>
+        </div>
+      </div>
     </div>
 
     <!-- Viewer -->
@@ -778,70 +720,6 @@
         renderer.setSize(window.innerWidth, window.innerHeight);
         uniforms.uResolution.value.set(window.innerWidth, window.innerHeight);
       });
-    }
-
-    // Custom Cursor
-    function initCustomCursor() {
-      const cursor = document.getElementById('customCursor');
-      if (!cursor) return;
-
-      const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-      if (isTouchDevice) {
-        document.body.classList.add('touch-device');
-        return;
-      }
-
-      let mouseX = 0;
-      let mouseY = 0;
-
-      const updateCursorPosition = (e) => {
-        mouseX = e.clientX;
-        mouseY = e.clientY;
-        cursor.style.transform = `translate(${mouseX}px, ${mouseY}px)`;
-      };
-
-      document.addEventListener('mousemove', updateCursorPosition);
-
-      const handleMouseOver = (e) => {
-        const target = e.target;
-
-        if (target.matches('a') || target.closest('a')) {
-          cursor.classList.add('link');
-        }
-
-        if (target.matches('button') || target.closest('button') || target.dataset.cursor === 'button') {
-          cursor.classList.add('button');
-        }
-      };
-
-      const handleMouseOut = (e) => {
-        cursor.classList.remove('link', 'button');
-      };
-
-      document.addEventListener('mouseover', handleMouseOver);
-      document.addEventListener('mouseout', handleMouseOut);
-
-      const handleMouseDown = () => {
-        cursor.classList.add('clicking');
-      };
-
-      const handleMouseUp = () => {
-        cursor.classList.remove('clicking');
-      };
-
-      document.addEventListener('mousedown', handleMouseDown);
-      document.addEventListener('mouseup', handleMouseUp);
-
-      const handleMouseLeave = () => {
-        cursor.style.opacity = '0';
-      };
-
-      const handleMouseEnter = () => {
-        cursor.style.opacity = '1';
-      };
-
-      document.addEventListener('mouseleave', handleMouseLeave);
-      document.addEventListener('mouseenter', handleMouseEnter);
     }
 
     // Glowing Card Effect
@@ -1048,7 +926,6 @@
 
     window.addEventListener('DOMContentLoaded', () => {
       initGradient();
-      initCustomCursor();
       loadArtworks();
     });
   </script>
