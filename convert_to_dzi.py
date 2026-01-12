@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Convert JPEG/PNG images to DZI format for OpenSeadragon viewer.
+Convert images to DZI format for the gallery.
 Usage: python3 convert_to_dzi.py image.jpg
        python3 convert_to_dzi.py image.jpg --cleanup
 """
@@ -17,17 +17,16 @@ except ImportError:
     HAS_PYVIPS = False
     import subprocess
 
+from thumb_utils import get_or_generate_thumbnail
+
 
 def slugify(name):
-    """Convert name to URL-safe slug"""
-    # Remove special characters, keep only alphanumeric, hyphens, underscores
     slug = re.sub(r'[^\w\s-]', '', name)
     slug = re.sub(r'[-\s]+', '-', slug)
     return slug.lower().strip('-')
 
 
 def show_progress(image, progress):
-    """Display progress bar"""
     percent = progress.percent
     bar_length = 40
     filled = int(bar_length * percent / 100)
@@ -40,15 +39,12 @@ def show_progress(image, progress):
 
 
 def convert_to_dzi(image_path, cleanup=False):
-    """Convert image to DZI format with clean URL-safe paths"""
-
     original_image_path = Path(image_path).resolve()
 
     if not original_image_path.exists():
         print(f"Error: File not found: {original_image_path}")
         sys.exit(1)
 
-    # Create clean slug from original filename
     original_name = original_image_path.stem
     clean_slug = slugify(original_name)
 
@@ -59,60 +55,52 @@ def convert_to_dzi(image_path, cleanup=False):
     artworks_dir = script_dir / 'Artworks'
     artworks_dir.mkdir(exist_ok=True)
 
-    # Copy image into Artworks directory
     image_in_artworks = artworks_dir / original_image_path.name
     print(f"Converting {original_image_path.name} to DZI format...")
     print(f"Slug: {clean_slug}")
 
     try:
-        # Copy image to Artworks folder
         image_in_artworks.write_bytes(original_image_path.read_bytes())
 
         dzi_dir = artworks_dir / clean_slug
         dzi_file = dzi_dir / f'{clean_slug}.dzi'
-
-        # Create output directory
         dzi_dir.mkdir(exist_ok=True)
 
         if HAS_PYVIPS:
-            # Use pyvips with progress tracking
             convert_with_pyvips(image_in_artworks, dzi_dir, clean_slug)
         else:
-            # Fallback to CLI vips
             print("\npyvips not available, using vips CLI (no progress)...")
             convert_with_cli(image_in_artworks, dzi_dir, clean_slug)
 
         print(f"\n✓ DZI created successfully!")
         print(f"Files saved to: {dzi_dir}/")
 
-        # Store metadata for gallery
+        print("Generating thumbnail...", end=' ', flush=True)
+        if get_or_generate_thumbnail(clean_slug, artworks_dir):
+            print("✓")
+        else:
+            print("(skipped)")
+
         save_artwork_metadata(clean_slug, original_name, dzi_file, artworks_dir)
 
-        # Clean up the copied image from Artworks
         image_in_artworks.unlink()
         print(f"✓ Copied image cleaned up")
 
     except Exception as e:
         print(f"\nError: {e}")
-        # Clean up copied image on error
         if image_in_artworks.exists():
             image_in_artworks.unlink()
         sys.exit(1)
 
 
 def convert_with_pyvips(image_path, dzi_dir, slug):
-    """Convert using pyvips with progress tracking"""
     image = pyvips.Image.new_from_file(str(image_path), access='sequential')
 
-    # Enable progress reporting
     image.set_progress(True)
     image.signal_connect('eval', show_progress)
 
-    # vips dzsave creates: slug.dzi and slug_files/
-    # We want them in dzi_dir
     output_path = str(dzi_dir / slug)
 
-    # Save as DZI with progress - use 'dz' layout for Deep Zoom
     image.dzsave(
         output_path,
         layout='dz',
@@ -121,7 +109,6 @@ def convert_with_pyvips(image_path, dzi_dir, slug):
         suffix='.jpg[Q=85]'
     )
 
-    # Verify the files were created
     dzi_file = dzi_dir / f'{slug}.dzi'
     tiles_dir = dzi_dir / f'{slug}_files'
 
@@ -132,7 +119,6 @@ def convert_with_pyvips(image_path, dzi_dir, slug):
 
 
 def convert_with_cli(image_path, dzi_dir, slug):
-    """Fallback to vips CLI without progress"""
     subprocess.run([
         'vips', 'dzsave', str(image_path), str(dzi_dir / slug),
         '--layout', 'dz',
@@ -143,7 +129,6 @@ def convert_with_cli(image_path, dzi_dir, slug):
 
 
 def save_artwork_metadata(slug, original_name, dzi_file, artworks_dir):
-    """Save metadata about converted artwork"""
     metadata_file = artworks_dir / '.artworks.json'
 
     metadata = {}

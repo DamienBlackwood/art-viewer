@@ -1,98 +1,402 @@
 <!DOCTYPE html>
-<html>
+<html data-theme="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Art Gallery</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://openseadragon.github.io/openseadragon/openseadragon.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Syne:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow-x: hidden;
+    }
+
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: #0a0a0a;
-      color: #fff;
+      font-family: 'Inter', 'Space Grotesk', system-ui, -apple-system, sans-serif;
+      color: #ffffff;
+      background: #0a0e27;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
       overflow: hidden;
     }
 
-    /* Sidebar Gallery */
+    /* Hide default cursor for custom cursor */
+    body:not(.touch-device) {
+      cursor: none !important;
+    }
+
+    body:not(.touch-device) * {
+      cursor: none !important;
+    }
+
+    /* Custom Cursor */
+    .custom-cursor {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 40px;
+      height: 40px;
+      pointer-events: none;
+      z-index: 9999;
+      mix-blend-mode: difference;
+      display: none;
+      will-change: transform;
+    }
+
+    body:not(.touch-device) .custom-cursor {
+      display: block;
+    }
+
+    .cursor-dot {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 8px;
+      height: 8px;
+      background: rgba(120, 200, 180, 1);
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      transition: width 0.2s cubic-bezier(0.22, 1, 0.36, 1),
+                  height 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    .cursor-outline {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 40px;
+      height: 40px;
+      border: 2px solid rgba(120, 200, 180, 0.8);
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      transition: width 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+                  height 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+                  border-width 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    .custom-cursor.link .cursor-outline {
+      width: 60px;
+      height: 60px;
+    }
+
+    .custom-cursor.link .cursor-dot {
+      width: 4px;
+      height: 4px;
+    }
+
+    .custom-cursor.button .cursor-outline {
+      width: 50px;
+      height: 50px;
+      border-width: 3px;
+    }
+
+    .custom-cursor.button .cursor-dot {
+      width: 12px;
+      height: 12px;
+    }
+
+    .custom-cursor.clicking .cursor-outline {
+      width: 35px;
+      height: 35px;
+    }
+
+    /* Three.js Background */
+    #webGLApp {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+      pointer-events: none;
+      overflow: hidden;
+    }
+
+    #webGLApp canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100% !important;
+      height: 100% !important;
+      display: block;
+    }
+
+    /* Main Container */
+    main {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      min-height: 100vh;
+    }
+
+    /* Sidebar Gallery with Glassmorphism */
     .sidebar {
       position: fixed;
       left: 0;
       top: 0;
-      width: 300px;
+      width: 320px;
       height: 100vh;
-      background: #1a1a1a;
-      border-right: 1px solid #333;
+      background: rgba(10, 14, 39, 0.6);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-right: 1px solid rgba(30, 90, 80, 0.2);
       overflow-y: auto;
       z-index: 100;
-      transition: transform 0.3s;
+      transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+      display: flex;
+      flex-direction: column;
     }
 
     .sidebar.hidden {
-      transform: translateX(-300px);
+      transform: translateX(-320px);
+    }
+
+    /* Custom Scrollbar */
+    .sidebar::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .sidebar::-webkit-scrollbar-track {
+      background: rgba(30, 90, 80, 0.1);
+    }
+
+    .sidebar::-webkit-scrollbar-thumb {
+      background: rgba(30, 90, 80, 0.3);
+      border-radius: 3px;
+    }
+
+    .sidebar::-webkit-scrollbar-thumb:hover {
+      background: rgba(30, 90, 80, 0.5);
     }
 
     .sidebar-header {
-      padding: 20px;
-      background: #111;
-      border-bottom: 1px solid #333;
+      padding: 24px;
+      background: rgba(10, 14, 39, 0.4);
+      border-bottom: 1px solid rgba(30, 90, 80, 0.2);
+      flex-shrink: 0;
     }
 
     .sidebar-header h1 {
-      font-size: 20px;
-      font-weight: 600;
+      font-family: 'Syne', system-ui, sans-serif;
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
       margin-bottom: 8px;
+      background: linear-gradient(135deg, rgba(120, 200, 180, 1) 0%, rgba(140, 220, 200, 1) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
     }
 
     .artwork-count {
       font-size: 13px;
-      color: #888;
+      font-weight: 500;
+      color: rgba(120, 200, 180, 0.6);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
     }
 
     .artworks-list {
-      padding: 12px;
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding: 16px;
     }
 
+    /* Glowing Artwork Cards */
     .artwork-item {
-      padding: 12px;
-      margin-bottom: 8px;
-      background: #222;
-      border-radius: 6px;
+      position: relative;
+      display: flex;
+      gap: 16px;
+      padding: 16px;
+      background: rgba(10, 14, 39, 0.4);
+      border-radius: 16px;
       cursor: pointer;
-      transition: all 0.2s;
-      border: 2px solid transparent;
+      transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+      border: 1px solid rgba(30, 90, 80, 0.15);
+      flex-shrink: 0;
+      min-height: 90px;
+      isolation: isolate;
+      transform: translate3d(0, 0, 0.01px);
+      overflow: hidden;
+    }
+
+    /* Glow effect variables */
+    .artwork-item {
+      --glow-sens: 30;
+      --color-sens: calc(var(--glow-sens) + 20);
+      --pointer-x: 50%;
+      --pointer-y: 50%;
+      --pointer-°: 45deg;
+      --pointer-d: 0;
+      --glow-color: 142deg 75% 65%;
+      --glow-boost: 0%;
+      --blend: soft-light;
+      --glow-blend: plus-lighter;
+    }
+
+    .artwork-item::before,
+    .artwork-item .glow {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      transition: opacity 0.25s ease-out;
+      z-index: -1;
+      pointer-events: none;
+    }
+
+    .artwork-item:not(:hover):not(.active):not(.animating) .glow,
+    .artwork-item:not(:hover):not(.active):not(.animating)::before {
+      opacity: 0;
+      transition: opacity 0.75s ease-in-out;
+    }
+
+    .artwork-item::before {
+      border: 1px solid transparent;
+      background:
+        linear-gradient(rgba(10, 14, 39, 1) 0 100%) padding-box,
+        linear-gradient(rgb(255 255 255 / 0%) 0% 100%) border-box,
+        radial-gradient(at 80% 55%, hsl(142, 75%, 65%) 0px, transparent 50%) border-box,
+        radial-gradient(at 20% 80%, hsl(142, 60%, 55%) 0px, transparent 50%) border-box,
+        radial-gradient(at 50% 20%, hsl(142, 80%, 70%) 0px, transparent 50%) border-box,
+        linear-gradient(hsl(142, 75%, 65%) 0 100%) border-box;
+      opacity: calc((var(--pointer-d) - var(--color-sens)) / (100 - var(--color-sens)));
+      mask-image:
+        conic-gradient(
+          from var(--pointer-°) at center,
+          black 25%,
+          transparent 40%,
+          transparent 60%,
+          black 75%
+        );
+    }
+
+    .artwork-item .glow {
+      --outset: 15px;
+      inset: calc(var(--outset) * -1);
+      z-index: 1;
+      mask-image:
+        conic-gradient(
+          from var(--pointer-°) at center,
+          black 2.5%,
+          transparent 10%,
+          transparent 90%,
+          black 97.5%
+        );
+      opacity: calc((var(--pointer-d) - var(--glow-sens)) / (100 - var(--glow-sens)));
+      mix-blend-mode: var(--glow-blend);
+    }
+
+    .artwork-item .glow::before {
+      content: "";
+      position: absolute;
+      inset: var(--outset);
+      border-radius: inherit;
+      box-shadow:
+        inset 0 0 0 1px hsl(var(--glow-color) / 100%),
+        inset 0 0 1px 0 hsl(var(--glow-color) / calc(var(--glow-boost) + 60%)),
+        inset 0 0 3px 0 hsl(var(--glow-color) / calc(var(--glow-boost) + 50%)),
+        inset 0 0 6px 0 hsl(var(--glow-color) / calc(var(--glow-boost) + 40%)),
+        inset 0 0 15px 0 hsl(var(--glow-color) / calc(var(--glow-boost) + 30%)),
+        inset 0 0 25px 2px hsl(var(--glow-color) / calc(var(--glow-boost) + 20%)),
+        0 0 1px 0 hsl(var(--glow-color) / calc(var(--glow-boost) + 60%)),
+        0 0 3px 0 hsl(var(--glow-color) / calc(var(--glow-boost) + 50%)),
+        0 0 6px 0 hsl(var(--glow-color) / calc(var(--glow-boost) + 40%)),
+        0 0 15px 0 hsl(var(--glow-color) / calc(var(--glow-boost) + 30%)),
+        0 0 25px 2px hsl(var(--glow-color) / calc(var(--glow-boost) + 20%));
     }
 
     .artwork-item:hover {
-      background: #2a2a2a;
-      border-color: #444;
+      background: rgba(20, 35, 50, 0.6);
+      transform: translateY(-2px);
+      border-color: rgba(60, 140, 120, 0.4);
+      box-shadow: 0 8px 32px rgba(30, 90, 80, 0.15);
     }
 
     .artwork-item.active {
-      background: #2a2a2a;
-      border-color: #0066cc;
+      background: rgba(30, 60, 55, 0.5);
+      border-color: rgba(120, 200, 180, 0.5);
+      box-shadow: 0 0 30px rgba(30, 90, 80, 0.3);
+    }
+
+    .artwork-thumb {
+      width: 70px;
+      height: 80px;
+      object-fit: cover;
+      background: rgba(10, 14, 39, 0.6);
+      display: block;
+      border-radius: 8px;
+      flex-shrink: 0;
+      transition: transform 0.3s ease;
+    }
+
+    .artwork-item:hover .artwork-thumb {
+      transform: scale(1.05);
+    }
+
+    .artwork-thumb.loading {
+      background: linear-gradient(90deg, rgba(30, 60, 55, 0.3) 25%, rgba(60, 100, 90, 0.3) 50%, rgba(30, 60, 55, 0.3) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+    }
+
+    @keyframes shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    .artwork-info {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      min-width: 0;
+      position: relative;
+      z-index: 2;
     }
 
     .artwork-name {
+      font-family: 'Space Grotesk', system-ui, sans-serif;
       font-size: 14px;
-      font-weight: 500;
-      margin-bottom: 4px;
-      line-height: 1.3;
+      font-weight: 600;
+      margin-bottom: 6px;
+      line-height: 1.4;
+      white-space: normal;
+      word-break: break-word;
+      color: rgba(180, 240, 220, 0.95);
     }
 
     .artwork-meta {
       font-size: 12px;
-      color: #888;
+      color: rgba(120, 200, 180, 0.5);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
     }
 
     /* Viewer Area */
     .viewer-container {
       position: fixed;
-      left: 300px;
+      left: 320px;
       top: 0;
       right: 0;
       bottom: 0;
-      transition: left 0.3s;
+      transition: left 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+      z-index: 50;
     }
 
     .viewer-container.fullwidth {
@@ -102,135 +406,526 @@
     #viewer {
       width: 100%;
       height: 100%;
-      background: #000;
+      background: rgba(0, 0, 0, 0.3);
     }
 
-    /* Controls */
+    /* Controls with Glassmorphism */
     .controls {
       position: fixed;
-      top: 20px;
-      right: 20px;
+      top: 24px;
+      right: 24px;
       z-index: 200;
       display: flex;
       gap: 12px;
     }
 
     .btn {
-      background: rgba(0, 0, 0, 0.8);
-      backdrop-filter: blur(10px);
-      border: 1px solid #333;
-      color: #fff;
-      padding: 10px 16px;
-      border-radius: 6px;
+      background: rgba(10, 14, 39, 0.7);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(30, 90, 80, 0.3);
+      color: rgba(180, 240, 220, 0.9);
+      padding: 12px 20px;
+      border-radius: 12px;
       cursor: pointer;
+      font-family: 'Space Grotesk', system-ui, sans-serif;
       font-size: 14px;
-      transition: all 0.2s;
+      font-weight: 600;
+      transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(30, 90, 80, 0.3), rgba(30, 90, 80, 0.1), rgba(30, 90, 80, 0.3));
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      z-index: 0;
     }
 
     .btn:hover {
-      background: rgba(255, 255, 255, 0.1);
-      border-color: #555;
+      background: rgba(20, 40, 35, 0.8);
+      border-color: rgba(60, 140, 120, 0.6);
+      color: rgba(200, 255, 240, 1);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(30, 90, 80, 0.25);
     }
 
-    /* Info Overlay */
+    .btn:hover::before {
+      opacity: 1;
+    }
+
+    .btn span {
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Info Overlay with Glassmorphism */
     .info-overlay {
       position: fixed;
-      bottom: 20px;
-      left: 320px;
-      background: rgba(0, 0, 0, 0.8);
-      backdrop-filter: blur(10px);
-      padding: 16px 20px;
-      border-radius: 8px;
-      border: 1px solid #333;
+      bottom: 24px;
+      left: 344px;
+      background: rgba(10, 14, 39, 0.7);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      padding: 20px 24px;
+      border-radius: 16px;
+      border: 1px solid rgba(30, 90, 80, 0.3);
       z-index: 200;
-      transition: left 0.3s, opacity 0.3s;
+      transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.3s ease;
+      box-shadow: 0 8px 32px rgba(30, 90, 80, 0.15);
     }
 
     .info-overlay.fullwidth {
-      left: 20px;
+      left: 24px;
     }
 
     .info-overlay.hidden {
       opacity: 0;
       pointer-events: none;
+      transform: translateY(20px);
     }
 
     .info-title {
-      font-size: 18px;
-      font-weight: 600;
+      font-family: 'Syne', system-ui, sans-serif;
+      font-size: 20px;
+      font-weight: 700;
       margin-bottom: 4px;
+      letter-spacing: -0.01em;
+      background: linear-gradient(135deg, rgba(180, 240, 220, 1) 0%, rgba(200, 255, 240, 1) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
     }
 
     .info-details {
       font-size: 13px;
-      color: #999;
+      color: rgba(120, 200, 180, 0.6);
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
     }
 
-    /* Loading */
+    /* Loading State */
     .loading {
       position: absolute;
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
       text-align: center;
-      color: #666;
+      color: rgba(120, 200, 180, 0.5);
+      font-family: 'Space Grotesk', system-ui, sans-serif;
+      font-size: 16px;
+      font-weight: 500;
     }
 
+    /* Empty State */
     .empty-state {
       text-align: center;
       padding: 60px 20px;
-      color: #666;
+      color: rgba(120, 200, 180, 0.5);
     }
 
     .empty-state h2 {
-      font-size: 16px;
-      margin-bottom: 12px;
-      color: #888;
+      font-family: 'Syne', system-ui, sans-serif;
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 16px;
+      color: rgba(180, 240, 220, 0.7);
+      letter-spacing: -0.01em;
+    }
+
+    .empty-state p {
+      font-size: 14px;
+      margin-bottom: 16px;
+      font-weight: 500;
     }
 
     .empty-state code {
-      background: #222;
-      padding: 4px 8px;
-      border-radius: 4px;
+      background: rgba(30, 60, 55, 0.4);
+      padding: 8px 12px;
+      border-radius: 8px;
       font-size: 13px;
-      color: #0066cc;
+      color: rgba(140, 220, 200, 1);
+      font-family: 'Space Grotesk', system-ui, monospace;
+      border: 1px solid rgba(60, 140, 120, 0.3);
+    }
+
+    /* Animation for smooth loading */
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .artwork-item {
+      animation: fadeInUp 0.5s ease-out backwards;
+    }
+
+    .artwork-item:nth-child(1) { animation-delay: 0.05s; }
+    .artwork-item:nth-child(2) { animation-delay: 0.1s; }
+    .artwork-item:nth-child(3) { animation-delay: 0.15s; }
+    .artwork-item:nth-child(4) { animation-delay: 0.2s; }
+    .artwork-item:nth-child(5) { animation-delay: 0.25s; }
+    .artwork-item:nth-child(n+6) { animation-delay: 0.3s; }
+
+    /* Responsive Design */
+    @media (max-width: 768px) {
+      .sidebar {
+        width: 100%;
+        transform: translateY(100%);
+      }
+
+      .sidebar.hidden {
+        transform: translateY(100%);
+      }
+
+      .sidebar.visible {
+        transform: translateY(0);
+      }
+
+      .viewer-container {
+        left: 0;
+      }
+
+      .viewer-container.fullwidth {
+        left: 0;
+      }
+
+      .controls {
+        top: 16px;
+        right: 16px;
+      }
+
+      .info-overlay {
+        left: 16px;
+        right: 16px;
+        bottom: 16px;
+      }
+
+      .btn {
+        padding: 10px 16px;
+        font-size: 12px;
+      }
+    }
+
+    /* Reduced Motion Support */
+    @media (prefers-reduced-motion: reduce) {
+      * {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+      }
     }
   </style>
 </head>
 <body>
-  <!-- Sidebar Gallery -->
-  <div class="sidebar" id="sidebar">
-    <div class="sidebar-header">
-      <h1>Art Gallery</h1>
-      <div class="artwork-count" id="artworkCount">Loading...</div>
-    </div>
-    <div class="artworks-list" id="artworksList"></div>
+  <!-- Three.js Gradient Background -->
+  <div id="webGLApp"></div>
+
+  <!-- Custom Cursor -->
+  <div class="custom-cursor" id="customCursor">
+    <div class="cursor-dot"></div>
+    <div class="cursor-outline"></div>
   </div>
 
-  <!-- Viewer -->
-  <div class="viewer-container" id="viewerContainer">
-    <div id="viewer">
-      <div class="loading">Select an artwork to view</div>
+  <main>
+    <!-- Sidebar Gallery -->
+    <div class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <h1>Art Gallery</h1>
+        <div class="artwork-count" id="artworkCount">Loading...</div>
+      </div>
+      <div class="artworks-list" id="artworksList"></div>
     </div>
 
-    <div class="controls">
-      <button class="btn" id="toggleSidebar">☰ Gallery</button>
-      <button class="btn" id="fullscreen">⛶ Fullscreen</button>
-    </div>
+    <!-- Viewer -->
+    <div class="viewer-container" id="viewerContainer">
+      <div id="viewer">
+        <div class="loading">Select an artwork to view</div>
+      </div>
 
-    <div class="info-overlay hidden" id="infoOverlay">
-      <div class="info-title" id="infoTitle"></div>
-      <div class="info-details" id="infoDetails"></div>
+      <div class="controls">
+        <button class="btn" id="toggleSidebar" data-cursor="button"><span>☰ Gallery</span></button>
+        <button class="btn" id="fullscreen" data-cursor="button"><span>⛶ Fullscreen</span></button>
+      </div>
+
+      <div class="info-overlay hidden" id="infoOverlay">
+        <div class="info-title" id="infoTitle"></div>
+        <div class="info-details" id="infoDetails"></div>
+      </div>
     </div>
-  </div>
+  </main>
 
   <script>
+    // Three.js Animated Gradient Background
+    function initGradient() {
+      const container = document.getElementById("webGLApp");
+      if (!container) return;
+
+      const renderer = new THREE.WebGLRenderer({
+        antialias: true,
+        powerPreference: "high-performance",
+        alpha: false
+      });
+
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.domElement.style.position = "fixed";
+      renderer.domElement.style.top = "0";
+      renderer.domElement.style.left = "0";
+      renderer.domElement.style.zIndex = "0";
+      container.appendChild(renderer.domElement);
+
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x0a0e27);
+
+      const camera = new THREE.PerspectiveCamera(
+        45,
+        window.innerWidth / window.innerHeight,
+        0.1,
+        10000
+      );
+      camera.position.z = 50;
+
+      const clock = new THREE.Clock();
+      const geometry = new THREE.PlaneGeometry(100, 100);
+
+      const uniforms = {
+        uTime: { value: 0 },
+        uResolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) },
+        uColor1: { value: new THREE.Vector3(0.12, 0.35, 0.28) },
+        uColor2: { value: new THREE.Vector3(0.08, 0.18, 0.22) },
+        uColor3: { value: new THREE.Vector3(0.15, 0.42, 0.35) },
+        uSpeed: { value: 0.6 },
+        uIntensity: { value: 0.8 }
+      };
+
+      const material = new THREE.ShaderMaterial({
+        uniforms: uniforms,
+        vertexShader: `
+          varying vec2 vUv;
+          void main() {
+            vUv = uv;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+          }
+        `,
+        fragmentShader: `
+          uniform float uTime;
+          uniform vec2 uResolution;
+          uniform vec3 uColor1;
+          uniform vec3 uColor2;
+          uniform vec3 uColor3;
+          uniform float uSpeed;
+          uniform float uIntensity;
+          varying vec2 vUv;
+
+          void main() {
+            vec2 uv = vUv;
+
+            vec2 center1 = vec2(0.5 + sin(uTime * uSpeed * 0.4) * 0.3, 0.5 + cos(uTime * uSpeed * 0.5) * 0.3);
+            vec2 center2 = vec2(0.5 + cos(uTime * uSpeed * 0.6) * 0.4, 0.5 + sin(uTime * uSpeed * 0.45) * 0.4);
+            vec2 center3 = vec2(0.5 + sin(uTime * uSpeed * 0.35) * 0.35, 0.5 + cos(uTime * uSpeed * 0.55) * 0.35);
+
+            float dist1 = length(uv - center1);
+            float dist2 = length(uv - center2);
+            float dist3 = length(uv - center3);
+
+            float influence1 = 1.0 - smoothstep(0.0, 0.5, dist1);
+            float influence2 = 1.0 - smoothstep(0.0, 0.5, dist2);
+            float influence3 = 1.0 - smoothstep(0.0, 0.5, dist3);
+
+            vec3 color = vec3(0.0);
+            color += uColor1 * influence1 * (0.5 + 0.5 * sin(uTime * uSpeed));
+            color += uColor2 * influence2 * (0.5 + 0.5 * cos(uTime * uSpeed * 1.2));
+            color += uColor3 * influence3 * (0.5 + 0.5 * sin(uTime * uSpeed * 0.8));
+
+            float noise = sin(uv.x * 10.0 + uTime * 0.3) * cos(uv.y * 10.0 + uTime * 0.4) * 0.1;
+            color += noise;
+
+            color = clamp(color, vec3(0.0), vec3(1.0)) * uIntensity;
+            color = mix(vec3(0.039, 0.055, 0.153), color, 0.8);
+
+            gl_FragColor = vec4(color, 1.0);
+          }
+        `
+      });
+
+      const mesh = new THREE.Mesh(geometry, material);
+      scene.add(mesh);
+
+      function animate() {
+        requestAnimationFrame(animate);
+        const delta = clock.getDelta();
+        uniforms.uTime.value += delta;
+        renderer.render(scene, camera);
+      }
+
+      animate();
+
+      window.addEventListener("resize", () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        uniforms.uResolution.value.set(window.innerWidth, window.innerHeight);
+      });
+    }
+
+    // Custom Cursor
+    function initCustomCursor() {
+      const cursor = document.getElementById('customCursor');
+      if (!cursor) return;
+
+      const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+      if (isTouchDevice) {
+        document.body.classList.add('touch-device');
+        return;
+      }
+
+      let mouseX = 0;
+      let mouseY = 0;
+
+      const updateCursorPosition = (e) => {
+        mouseX = e.clientX;
+        mouseY = e.clientY;
+        cursor.style.transform = `translate(${mouseX}px, ${mouseY}px)`;
+      };
+
+      document.addEventListener('mousemove', updateCursorPosition);
+
+      const handleMouseOver = (e) => {
+        const target = e.target;
+
+        if (target.matches('a') || target.closest('a')) {
+          cursor.classList.add('link');
+        }
+
+        if (target.matches('button') || target.closest('button') || target.dataset.cursor === 'button') {
+          cursor.classList.add('button');
+        }
+      };
+
+      const handleMouseOut = (e) => {
+        cursor.classList.remove('link', 'button');
+      };
+
+      document.addEventListener('mouseover', handleMouseOver);
+      document.addEventListener('mouseout', handleMouseOut);
+
+      const handleMouseDown = () => {
+        cursor.classList.add('clicking');
+      };
+
+      const handleMouseUp = () => {
+        cursor.classList.remove('clicking');
+      };
+
+      document.addEventListener('mousedown', handleMouseDown);
+      document.addEventListener('mouseup', handleMouseUp);
+
+      const handleMouseLeave = () => {
+        cursor.style.opacity = '0';
+      };
+
+      const handleMouseEnter = () => {
+        cursor.style.opacity = '1';
+      };
+
+      document.addEventListener('mouseleave', handleMouseLeave);
+      document.addEventListener('mouseenter', handleMouseEnter);
+    }
+
+    // Glowing Card Effect
+    function initGlowingCards() {
+      const round = (value, precision = 3) => parseFloat(value.toFixed(precision));
+      const clamp = (value, min = 0, max = 100) => Math.min(Math.max(value, min), max);
+
+      const centerOfElement = (el) => {
+        const { width, height } = el.getBoundingClientRect();
+        return [width / 2, height / 2];
+      };
+
+      const pointerPositionRelativeToElement = (el, e) => {
+        const pos = [e.clientX, e.clientY];
+        const { left, top, width, height } = el.getBoundingClientRect();
+        const x = pos[0] - left;
+        const y = pos[1] - top;
+        const px = clamp((100 / width) * x);
+        const py = clamp((100 / height) * y);
+        return { pixels: [x, y], percent: [px, py] };
+      };
+
+      const angleFromPointerEvent = (dx, dy) => {
+        let angleRadians = 0;
+        let angleDegrees = 0;
+        if (dx !== 0 || dy !== 0) {
+          angleRadians = Math.atan2(dy, dx);
+          angleDegrees = angleRadians * (180 / Math.PI) + 90;
+          if (angleDegrees < 0) {
+            angleDegrees += 360;
+          }
+        }
+        return angleDegrees;
+      };
+
+      const distanceFromCenter = (el, x, y) => {
+        const [cx, cy] = centerOfElement(el);
+        return [x - cx, y - cy];
+      };
+
+      const closenessToEdge = (el, x, y) => {
+        const [cx, cy] = centerOfElement(el);
+        const [dx, dy] = distanceFromCenter(el, x, y);
+        let k_x = Infinity;
+        let k_y = Infinity;
+        if (dx !== 0) {
+          k_x = cx / Math.abs(dx);
+        }
+        if (dy !== 0) {
+          k_y = cy / Math.abs(dy);
+        }
+        return clamp(1 / Math.min(k_x, k_y), 0, 1);
+      };
+
+      const cards = document.querySelectorAll('.artwork-item');
+
+      cards.forEach((card) => {
+        card.insertAdjacentHTML('afterbegin', '<span class="glow"></span>');
+
+        const cardUpdate = (e) => {
+          const position = pointerPositionRelativeToElement(card, e);
+          const [px, py] = position.pixels;
+          const [perx, pery] = position.percent;
+          const [dx, dy] = distanceFromCenter(card, px, py);
+          const edge = closenessToEdge(card, px, py);
+          const angle = angleFromPointerEvent(dx, dy);
+
+          card.style.setProperty('--pointer-x', `${round(perx)}%`);
+          card.style.setProperty('--pointer-y', `${round(pery)}%`);
+          card.style.setProperty('--pointer-°', `${round(angle)}deg`);
+          card.style.setProperty('--pointer-d', `${round(edge * 100)}`);
+
+          card.classList.remove('animating');
+        };
+
+        card.addEventListener('pointermove', cardUpdate);
+      });
+    }
+
     let artworks = [];
     let currentArtwork = null;
     let viewer = null;
     let sidebarVisible = true;
 
-    // Load artworks from API
     async function loadArtworks() {
       try {
         const response = await fetch('/api/artworks');
@@ -239,7 +934,6 @@
         artworks = await response.json();
         renderArtworksList();
 
-        // Load first artwork automatically
         if (artworks.length > 0) {
           loadArtwork(artworks[0], 0);
         }
@@ -255,7 +949,6 @@
       }
     }
 
-    // Render artworks list
     function renderArtworksList() {
       const list = document.getElementById('artworksList');
       const count = document.getElementById('artworkCount');
@@ -275,22 +968,32 @@
 
       list.innerHTML = artworks.map((artwork, index) => `
         <div class="artwork-item" data-index="${index}" onclick="loadArtwork(artworks[${index}], ${index})">
-          <div class="artwork-name">${artwork.name}</div>
-          <div class="artwork-meta">${artwork.slug}</div>
+          <img class="artwork-thumb loading" src="${artwork.thumbnail}" alt="${artwork.name}">
+          <div class="artwork-info">
+            <div class="artwork-name">${artwork.name}</div>
+            <div class="artwork-meta">${artwork.slug}</div>
+          </div>
         </div>
       `).join('');
+
+      document.querySelectorAll('.artwork-thumb').forEach(img => {
+        img.addEventListener('load', () => img.classList.remove('loading'));
+        img.addEventListener('error', () => {
+          img.style.display = 'none';
+          img.parentElement.classList.remove('loading');
+        });
+      });
+
+      setTimeout(initGlowingCards, 100);
     }
 
-    // Load artwork in viewer
     function loadArtwork(artwork, index) {
       currentArtwork = artwork;
 
-      // Update active state
       document.querySelectorAll('.artwork-item').forEach((item, i) => {
         item.classList.toggle('active', i === index);
       });
 
-      // Show info
       const infoOverlay = document.getElementById('infoOverlay');
       const infoTitle = document.getElementById('infoTitle');
       const infoDetails = document.getElementById('infoDetails');
@@ -299,7 +1002,6 @@
       infoDetails.textContent = artwork.slug;
       infoOverlay.classList.remove('hidden');
 
-      // Load in OpenSeadragon
       if (viewer) {
         viewer.open(artwork.path);
       } else {
@@ -320,7 +1022,6 @@
       }
     }
 
-    // Toggle sidebar
     document.getElementById('toggleSidebar').addEventListener('click', () => {
       sidebarVisible = !sidebarVisible;
       document.getElementById('sidebar').classList.toggle('hidden', !sidebarVisible);
@@ -328,7 +1029,6 @@
       document.getElementById('infoOverlay').classList.toggle('fullwidth', !sidebarVisible);
     });
 
-    // Fullscreen
     document.getElementById('fullscreen').addEventListener('click', () => {
       if (!document.fullscreenElement) {
         document.documentElement.requestFullscreen();
@@ -337,7 +1037,6 @@
       }
     });
 
-    // Keyboard shortcuts
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && sidebarVisible) {
         document.getElementById('toggleSidebar').click();
@@ -347,8 +1046,11 @@
       }
     });
 
-    // Load on page load
-    loadArtworks();
+    window.addEventListener('DOMContentLoaded', () => {
+      initGradient();
+      initCustomCursor();
+      loadArtworks();
+    });
   </script>
 </body>
 </html>

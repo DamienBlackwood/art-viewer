@@ -1,3 +1,5 @@
 Artworks
 .DS_Store
 .artworks.json
+Reference
+__pycache__
