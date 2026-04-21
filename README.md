@@ -1,36 +1,36 @@
-# Art Viewer
+# art viewer
+I made this so I could view gigapixel art without destroying my laptop.
 
-View massive gigapixel images without overloading your RAM!
-
-## Quick Start
+## installing
 
 ```bash
 git clone https://github.com/DamienBlackwood/art-viewer.git
+
 python3 serve.py
-# Visit http://localhost:8000
+
+# then visit http://localhost:8000
 ```
 
-## Add Artwork
+## adding artworks
 
 ```bash
 python3 convert_to_dzi.py "image.jpg"
 ```
 
-That's it. Refresh browser and it appears.
+now just refresh your browser and it'll appear
 
-## Features
+## features
 
-- **Deep Zoom** - Smooth zoom on massive images
-- **Gallery + Viewer** - Browse sidebar, click to explore
-- **Auto-discovery** - Drop converted images, they just work
-- **Keyboard**: `ESC` (toggle sidebar), `F` (fullscreen)
-- **Smart conversion** - Auto-slugifies filenames, tracks progress
+- **deep zoom** - smooth zoom on massive images
+- **gallery + viewer** - the ability to browse converted artworks ***(work in progress)***
+- **auto-discovery** - automatically display art dropped into the repository
+- **smart conversion** - auto-slugifies filenames, tracks progress and other jazz
 
-## Controls
+## controls
 
-| Action | Key/Gesture |
+| action | key/gesture |
 |--------|-------------|
-| Zoom | Mouse wheel / pinch |
-| Pan | Click & drag |
-| Fullscreen | F |
-| Toggle sidebar | ESC |
+| zoom | mouse wheel / pinch |
+| pan | click & drag |
+| fullscreen | F |
+| toggle sidebar | ESC |
