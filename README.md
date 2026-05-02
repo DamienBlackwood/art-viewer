@@ -1,36 +1,43 @@
-# Art Viewer
+# Atelier
+An art gallery for **massive** (gigapixel) works of art. Served in your browser with everything stored on disk.
 
-View massive gigapixel images without overloading your RAM!
+## How does it look?
 
-## Quick Start
+
+<p align="center">
+  <img src="media/default-home.png" alt="atelier home" width="700">
+</p>
+
+*More customization is planned, when I get the time!*
+
+## Get started
+Requirements: Python 3.11+, [pyvips](https://libvips.github.io/pyvips/) (not required, but highly recommended for large images)
 
 ```bash
 git clone https://github.com/DamienBlackwood/art-viewer.git
+cd art-viewer
 python3 serve.py
-# Visit http://localhost:8000
 ```
 
-## Add Artwork
-
-```bash
-python3 convert_to_dzi.py "image.jpg"
-```
-
-That's it. Refresh browser and it appears.
+And then access `http://localhost:8000`. To upload an image, click the Add button or press `u`.
 
 ## Features
 
-- **Deep Zoom** - Smooth zoom on massive images
-- **Gallery + Viewer** - Browse sidebar, click to explore
-- **Auto-discovery** - Drop converted images, they just work
-- **Keyboard**: `ESC` (toggle sidebar), `F` (fullscreen)
-- **Smart conversion** - Auto-slugifies filenames, tracks progress
+Check [changelog](CHANGELOG.md)!
 
-## Controls
 
-| Action | Key/Gesture |
-|--------|-------------|
-| Zoom | Mouse wheel / pinch |
-| Pan | Click & drag |
-| Fullscreen | F |
-| Toggle sidebar | ESC |
+# Rationale
+
+It's converting images into Deep Zoom tiles and I serve them using a self madelocal viewer capable of utilising DZI.
+
+## Under the hood (reflections)
+
+Uses OpenSeadragon library for deep zoom functionality, a tiny python server for serving tiles, converting and annotation. Annotation is AES-GCM encrypted client side (I know, sounds excessive, but I really love encryption). Conversion process uses pyvips if present in order to perform shrink-on-load, which makes it faster on large images.
+
+# Methodology
+
+All code written by me, drawing from existing research but implemented independently. No AI was used.
+
+## License
+
+MIT

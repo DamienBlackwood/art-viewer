@@ -1,5 +1,6 @@
-Artworks
-.DS_Store
-.artworks.json
-Reference
-__pycache__
+Artworks/
+**/.DS_Store
+Reference/
+__pycache__/
+*.pyc
+venv/
